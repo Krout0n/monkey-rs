@@ -2,19 +2,19 @@ pub mod token {
 
     #[derive(Debug, PartialEq)]
     pub enum Token {
-        ILLEGAL(char),
+        Illegal(char),
         EOF,
 
-        ASSIGN,
-        PLUS,
+        Assign,
+        Plus,
 
-        LPAREN,
-        RPAREN,
-        LBRACE,
-        RBRACE,
+        LParen,
+        RParen,
+        LBrace,
+        RBrace,
 
-        SEMICOLON,
-        COLON,
+        Semicolon,
+        Comma,
     }
 }
 
@@ -44,15 +44,15 @@ pub mod lexer {
             self.read_char();
 
             match self.ch {
-                Some('=') => Token::ASSIGN,
-                Some('+') => Token::PLUS,
-                Some(';') => Token::SEMICOLON,
-                Some('{') => Token::LBRACE,
-                Some('}') => Token::RBRACE,
-                Some('(') => Token::LPAREN,
-                Some(')') => Token::RPAREN,
+                Some('=') => Token::Assign,
+                Some('+') => Token::Plus,
+                Some(';') => Token::Semicolon,
+                Some('{') => Token::LBrace,
+                Some('}') => Token::RBrace,
+                Some('(') => Token::LParen,
+                Some(')') => Token::RParen,
                 None => Token::EOF,
-                Some(c) => Token::ILLEGAL(c)
+                Some(c) => Token::Illegal(c)
             }
         }
 
@@ -77,12 +77,12 @@ mod tests {
     #[test]
     fn some_operand() {
         let expected = vec![
-            Token::PLUS,
-            Token::SEMICOLON,
-            Token::LBRACE,
-            Token::RBRACE,
-            Token::LPAREN,
-            Token::RPAREN,
+            Token::Plus,
+            Token::Semicolon,
+            Token::LBrace,
+            Token::RBrace,
+            Token::LParen,
+            Token::RParen,
             Token::EOF,
         ];
         let input = "+;{}()".to_string();
