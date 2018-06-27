@@ -1,14 +1,8 @@
 pub mod token {
 
     #[derive(Debug, PartialEq)]
-    pub struct Token {
-        kind: TokenKind,
-        literal: String,
-    }
-
-    #[derive(Debug, PartialEq)]
-    pub enum TokenKind {
-        ILLEGAL,
+    pub enum Token {
+        ILLEGAL(char),
         EOF,
 
         ASSIGN,
@@ -21,12 +15,6 @@ pub mod token {
 
         SEMICOLON,
         COLON,
-    }
-
-    impl Token {
-        pub fn new(kind: TokenKind, literal: String) -> Token {
-            Token { kind, literal }
-        }
     }
 }
 
@@ -56,15 +44,15 @@ pub mod lexer {
             self.read_char();
 
             match self.ch {
-                Some('=') => Token::new(TokenKind::ASSIGN, self.ch.unwrap().to_string()),
-                Some('+') => Token::new(TokenKind::PLUS, self.ch.unwrap().to_string()),
-                Some(';') => Token::new(TokenKind::SEMICOLON, self.ch.unwrap().to_string()),
-                Some('{') => Token::new(TokenKind::LBRACE, self.ch.unwrap().to_string()),
-                Some('}') => Token::new(TokenKind::RBRACE, self.ch.unwrap().to_string()),
-                Some('(') => Token::new(TokenKind::LPAREN, self.ch.unwrap().to_string()),
-                Some(')') => Token::new(TokenKind::RPAREN, self.ch.unwrap().to_string()),
-                None => Token::new(TokenKind::EOF, "".to_string()),
-                _ => Token::new(TokenKind::ILLEGAL, self.ch.unwrap().to_string()),
+                Some('=') => Token::ASSIGN,
+                Some('+') => Token::PLUS,
+                Some(';') => Token::SEMICOLON,
+                Some('{') => Token::LBRACE,
+                Some('}') => Token::RBRACE,
+                Some('(') => Token::LPAREN,
+                Some(')') => Token::RPAREN,
+                None => Token::EOF,
+                Some(c) => Token::ILLEGAL(c)
             }
         }
 
@@ -89,13 +77,13 @@ mod tests {
     #[test]
     fn some_operand() {
         let expected = vec![
-            Token::new(TokenKind::PLUS, "+".to_string()),
-            Token::new(TokenKind::SEMICOLON, ";".to_string()),
-            Token::new(TokenKind::LBRACE, "{".to_string()),
-            Token::new(TokenKind::RBRACE, "}".to_string()),
-            Token::new(TokenKind::LPAREN, "(".to_string()),
-            Token::new(TokenKind::RPAREN, ")".to_string()),
-            Token::new(TokenKind::EOF, "".to_string()),
+            Token::PLUS,
+            Token::SEMICOLON,
+            Token::LBRACE,
+            Token::RBRACE,
+            Token::LPAREN,
+            Token::RPAREN,
+            Token::EOF,
         ];
         let input = "+;{}()".to_string();
 
