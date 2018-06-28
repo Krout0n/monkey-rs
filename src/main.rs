@@ -1,5 +1,6 @@
 #![feature(exclusive_range_pattern)]
 #![feature(if_while_or_patterns)]
+#![feature(range_contains)]
 
 pub mod token {
 
@@ -13,6 +14,10 @@ pub mod token {
 
         GT,
         LT,
+
+        Bang,
+        Eq,
+        NotEq,
 
         LParen,
         RParen,
@@ -75,7 +80,23 @@ pub mod lexer {
             self.skip_whitespace();
 
             match self.ch {
-                Some('=') => Token::Assign,
+                Some('=') => {
+                    if let Some('=') = self.peek_char() {
+                        self.read_char();
+                        Token::Eq
+                    } else {
+                        println!("{:?}", self.peek_char());
+                        Token::Assign
+                    }
+                }
+                Some('!') => {
+                    if let Some('=') = self.peek_char() {
+                        self.read_char();
+                        Token::NotEq
+                    } else {
+                        Token::Bang
+                    }
+                }
                 Some('+') => Token::Plus,
                 Some('<') => Token::LT,
                 Some('>') => Token::GT,
@@ -87,7 +108,7 @@ pub mod lexer {
                 Some(',') => Token::Comma,
                 None => Token::EOF,
                 Some(c) => match c {
-                    'a'..'z' | 'A'..'Z' | '_' => {
+                    'a'..='z' | 'A'..='Z' | '_' => {
                         let mut literal = String::new();
                         while let Some('a'..'z') | Some('A'..'Z') | Some('_') = self.ch {
                             literal.push_str(&self.ch.unwrap().to_string());
@@ -96,9 +117,9 @@ pub mod lexer {
                         self.backtick();
                         lookup_keyword(literal)
                     }
-                    '0'..'9' => {
+                    '0'..='9' => {
                         let mut literal = String::new();
-                        while let Some('0'..'9') = self.ch {
+                        while let Some('0'..='9') = self.ch {
                             literal.push_str(&self.ch.unwrap().to_string());
                             self.read_char();
                         }
@@ -130,6 +151,10 @@ pub mod lexer {
             self.read_position -= 1;
             self.position = self.read_position - 1;
             self.ch = self.src.chars().nth(self.position);
+        }
+
+        fn peek_char(&self) -> Option<char> {
+            self.src.chars().nth(self.position)
         }
     }
 
@@ -222,7 +247,8 @@ mod tests {
                      return true;\
                      } else {\
                      return false;\
-                     }".to_string();
+                     }"
+            .to_string();
         let expected = vec![
             Token::If,
             Token::LParen,
@@ -248,4 +274,37 @@ mod tests {
             assert_eq!(result, t);
         }
     }
+
+    #[test]
+    fn add_eq_not_eq() {
+        let input = "\
+        9
+        !true;
+        10==10;\
+        10 != 9;"
+            .to_string();
+
+        let expected = vec![
+            Token::Int(9),
+            Token::Bang,
+            Token::True,
+            Token::Semicolon,
+            Token::Int(10),
+            Token::Eq,
+            Token::Int(10),
+            Token::Semicolon,
+            Token::Int(10),
+            Token::NotEq,
+            Token::Int(9),
+            Token::Semicolon,
+        ];
+
+        let mut l = Lexer::new(input);
+        for (i, t) in expected.into_iter().enumerate() {
+            let result = l.next_token();
+            println!("{:?} {:?}", result, t);
+            assert_eq!(result, t);
+        }
+    }
+
 }
