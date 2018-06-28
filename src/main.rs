@@ -11,6 +11,9 @@ pub mod token {
         Assign,
         Plus,
 
+        GT,
+        LT,
+
         LParen,
         RParen,
         LBrace,
@@ -23,12 +26,22 @@ pub mod token {
         Function,
         Ident(String),
         Int(i32),
+        If,
+        Else,
+        Return,
+        True,
+        False,
     }
 
     pub fn lookup_keyword(literal: String) -> Token {
         match &*literal {
             "let" => Token::Let,
             "fn" => Token::Function,
+            "if" => Token::If,
+            "else" => Token::Else,
+            "return" => Token::Return,
+            "true" => Token::True,
+            "false" => Token::False,
             _ => Token::Ident(literal),
         }
     }
@@ -64,6 +77,8 @@ pub mod lexer {
             match self.ch {
                 Some('=') => Token::Assign,
                 Some('+') => Token::Plus,
+                Some('<') => Token::LT,
+                Some('>') => Token::GT,
                 Some(';') => Token::Semicolon,
                 Some('{') => Token::LBrace,
                 Some('}') => Token::RBrace,
@@ -193,7 +208,40 @@ mod tests {
             Token::RParen,
             Token::Semicolon,
         ];
+        let mut l = Lexer::new(input);
+        for (i, t) in expected.into_iter().enumerate() {
+            let result = l.next_token();
+            assert_eq!(result, t);
+        }
+    }
 
+    #[test]
+    fn add_some_keywords() {
+        let input = "\
+                     if (5 < 10) {\
+                     return true;\
+                     } else {\
+                     return false;\
+                     }".to_string();
+        let expected = vec![
+            Token::If,
+            Token::LParen,
+            Token::Int(5),
+            Token::LT,
+            Token::Int(10),
+            Token::RParen,
+            Token::LBrace,
+            Token::Return,
+            Token::True,
+            Token::Semicolon,
+            Token::RBrace,
+            Token::Else,
+            Token::LBrace,
+            Token::Return,
+            Token::False,
+            Token::Semicolon,
+            Token::RBrace,
+        ];
         let mut l = Lexer::new(input);
         for (i, t) in expected.into_iter().enumerate() {
             let result = l.next_token();
