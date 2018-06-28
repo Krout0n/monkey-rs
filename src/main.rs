@@ -85,7 +85,6 @@ pub mod lexer {
                         self.read_char();
                         Token::Eq
                     } else {
-                        println!("{:?}", self.peek_char());
                         Token::Assign
                     }
                 }
@@ -298,9 +297,46 @@ mod tests {
         let mut l = Lexer::new(input);
         for (i, t) in expected.into_iter().enumerate() {
             let result = l.next_token();
-            println!("{:?} {:?}", result, t);
             assert_eq!(result, t);
         }
     }
 
+}
+
+mod repl {
+    use lexer::*;
+    use token::*;
+
+    use std::io::{self, stdin, Read, Write};
+    // 入/出力が標準入/出力じゃなくてもいいようにする
+    pub fn start() {
+        println!("Yo this is a Monkey programming language REPL!");
+        println!("Feel free to type some statement!");
+        loop {
+            print!(">> ");
+            io::stdout().flush().unwrap();
+            let mut src = String::new();
+            let mut l = Lexer::new(read_input());
+            loop {
+                let t = l.next_token();
+                println!("{:?}", t);
+                if t == Token::EOF {
+                    break;
+                }
+            }
+        }
+    }
+
+    fn read_input() -> String {
+        let mut s = String::new();
+        stdin().read_line(&mut s).expect("failed to read stdin");
+        s
+    }
+}
+
+use lexer::*;
+use token::*;
+
+fn main() {
+    repl::start();
 }
