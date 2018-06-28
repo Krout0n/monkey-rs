@@ -138,13 +138,9 @@ pub mod lexer {
         }
 
         fn read_char(&mut self) {
-            if self.read_position > self.src.len() {
-                self.ch = None
-            } else {
-                self.ch = self.src.chars().nth(self.position);
-                self.position = self.read_position;
-                self.read_position += 1;
-            }
+            self.ch = self.src.chars().nth(self.position);
+            self.position = self.read_position;
+            self.read_position += 1;
         }
 
         fn backtick(&mut self) {
