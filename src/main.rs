@@ -113,7 +113,7 @@ pub mod lexer {
                             literal.push_str(&self.ch.unwrap().to_string());
                             self.read_char();
                         }
-                        self.backtick();
+                        self.backtrack();
                         lookup_keyword(literal)
                     }
                     '0'..='9' => {
@@ -122,7 +122,7 @@ pub mod lexer {
                             literal.push_str(&self.ch.unwrap().to_string());
                             self.read_char();
                         }
-                        self.backtick();
+                        self.backtrack();
                         Token::Int(literal.parse::<i32>().unwrap())
                     }
                     _ => Token::Illegal(c),
@@ -142,10 +142,9 @@ pub mod lexer {
             self.read_position += 1;
         }
 
-        fn backtick(&mut self) {
+        fn backtrack(&mut self) {
             self.read_position -= 1;
             self.position = self.read_position - 1;
-            self.ch = self.src.chars().nth(self.position);
         }
 
         fn peek_char(&self) -> Option<char> {
@@ -229,7 +228,7 @@ mod tests {
             Token::Semicolon,
         ];
         let mut l = Lexer::new(input);
-        for (i, t) in expected.into_iter().enumerate() {
+        for t in expected {
             let result = l.next_token();
             assert_eq!(result, t);
         }
@@ -264,7 +263,7 @@ mod tests {
             Token::RBrace,
         ];
         let mut l = Lexer::new(input);
-        for (i, t) in expected.into_iter().enumerate() {
+        for t in expected {
             let result = l.next_token();
             assert_eq!(result, t);
         }
@@ -295,7 +294,7 @@ mod tests {
         ];
 
         let mut l = Lexer::new(input);
-        for (i, t) in expected.into_iter().enumerate() {
+        for t in expected {
             let result = l.next_token();
             assert_eq!(result, t);
         }
@@ -315,7 +314,6 @@ mod repl {
         loop {
             print!(">> ");
             io::stdout().flush().unwrap();
-            let mut src = String::new();
             let mut l = Lexer::new(read_input());
             loop {
                 let t = l.next_token();
@@ -333,9 +331,6 @@ mod repl {
         s
     }
 }
-
-use lexer::*;
-use token::*;
 
 fn main() {
     repl::start();
