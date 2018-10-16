@@ -186,7 +186,7 @@ mod tests {
                      } else {\
                      return false;\
                      }"
-            .to_string();
+        .to_string();
         let expected = vec![
             Token::If,
             Token::LParen,
