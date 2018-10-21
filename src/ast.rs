@@ -9,6 +9,7 @@ pub enum ASTKind {
     Multi(Box<AST>, Box<AST>),
     Let { name: Box<ASTKind>, value: Box<AST> },
     Minus(Box<AST>, Box<AST>),
+    Return(Box<AST>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -31,11 +32,19 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn return_stmt(&mut self) -> AST {
+        assert_eq!(self.get(), Some(Token::Return));
+        AST {
+            kind: ASTKind::Return(Box::new(self.expression_statement())),
+        }
+    }
+
     fn let_stmt(&mut self) -> AST {
         assert_eq!(self.get(), Some(Token::Let));
         let name = Box::new(Parser::token_to_ast(self.get().unwrap()));
         assert_eq!(self.get(), Some(Token::Assign));
         let value = Box::new(self.expression());
+        assert_eq!(self.get(), Some(Token::Semicolon));
         AST {
             kind: ASTKind::Let { name, value },
         }
@@ -115,6 +124,12 @@ impl<'a> Parser<'a> {
         self.additive()
     }
 
+    fn expression_statement(&mut self) -> AST {
+        let ast = self.expression();
+        assert_eq!(self.get(), Some(Token::Semicolon));
+        ast
+    }
+
     pub fn parse(&mut self) {
         let node = self.expression();
         self.result.push(node);
@@ -122,15 +137,14 @@ impl<'a> Parser<'a> {
 }
 
 mod tests {
-    static tokens: [Token; 4] = [Token::Int(1), Token::Plus, Token::Int(2), Token::EOF];
     use super::*;
     #[test]
     fn parse_one_plus_two() {
+        let tokens: [Token; 4] = [Token::Int(1), Token::Plus, Token::Int(2), Token::EOF];
         let mut p = Parser::new(&tokens);
-        p.parse();
         assert_eq!(
-            p.result,
-            vec![AST {
+            p.additive(),
+            AST {
                 kind: ASTKind::Add(
                     Box::new(AST {
                         kind: ASTKind::Int(1)
@@ -139,7 +153,7 @@ mod tests {
                         kind: ASTKind::Int(2)
                     })
                 )
-            }]
+            }
         )
     }
 
@@ -154,10 +168,9 @@ mod tests {
             Token::EOF,
         ];
         let mut p = Parser::new(&t);
-        p.parse();
         assert_eq!(
-            p.result,
-            vec![AST {
+            p.additive(),
+            AST {
                 kind: ASTKind::Add(
                     Box::new(AST {
                         kind: ASTKind::Add(
@@ -173,7 +186,7 @@ mod tests {
                         kind: ASTKind::Int(3)
                     })
                 )
-            }]
+            }
         )
     }
 
@@ -181,10 +194,9 @@ mod tests {
     fn parse_one_times_two() {
         let t = vec![Token::Int(1), Token::Star, Token::Int(2), Token::EOF];
         let mut p = Parser::new(&t);
-        p.parse();
         assert_eq!(
-            p.result,
-            vec![AST {
+            p.multiplicative(),
+            AST {
                 kind: ASTKind::Multi(
                     Box::new(AST {
                         kind: ASTKind::Int(1)
@@ -193,7 +205,7 @@ mod tests {
                         kind: ASTKind::Int(2)
                     })
                 )
-            }]
+            }
         )
     }
 
@@ -208,10 +220,9 @@ mod tests {
             Token::EOF,
         ];
         let mut p = Parser::new(&t);
-        p.parse();
         assert_eq!(
-            p.result,
-            vec![AST {
+            p.additive(),
+            AST {
                 kind: ASTKind::Add(
                     Box::new(AST {
                         kind: ASTKind::Int(1)
@@ -227,7 +238,7 @@ mod tests {
                         )
                     }),
                 )
-            }]
+            }
         )
     }
 
@@ -244,10 +255,9 @@ mod tests {
             Token::EOF,
         ];
         let mut p = Parser::new(&t);
-        p.parse();
         assert_eq!(
-            p.result,
-            vec![AST {
+            p.additive(),
+            AST {
                 kind: ASTKind::Add(
                     Box::new(AST {
                         kind: ASTKind::Add(
@@ -270,12 +280,13 @@ mod tests {
                         kind: ASTKind::Int(4)
                     }),
                 )
-            }]
+            }
         )
     }
 
     #[test]
     fn test_peek() {
+        let tokens: [Token; 4] = [Token::Int(1), Token::Plus, Token::Int(2), Token::EOF];
         let mut p = Parser::new(&tokens);
         assert_eq!(p.peek(), Some(Token::Int(1)));
         assert_eq!(p.index, 0);
@@ -283,6 +294,7 @@ mod tests {
 
     #[test]
     fn test_get() {
+        let tokens: [Token; 4] = [Token::Int(1), Token::Plus, Token::Int(2), Token::EOF];
         let mut p = Parser::new(&tokens);
         assert_eq!(p.get(), Some(Token::Int(1)));
         assert_eq!(p.get(), Some(Token::Plus));
@@ -342,5 +354,32 @@ mod tests {
                 }
             }
         );
+    }
+
+    #[test]
+    fn parse_return_stmt() {
+        let t = vec![
+            Token::Return,
+            Token::Ident("x".to_string()),
+            Token::Plus,
+            Token::Int(1),
+            Token::Semicolon,
+        ];
+        let mut p = Parser::new(&t);
+        assert_eq!(
+            p.return_stmt(),
+            AST {
+                kind: ASTKind::Return(Box::new(AST {
+                    kind: ASTKind::Add(
+                        Box::new(AST {
+                            kind: ASTKind::Ident("x".to_string())
+                        }),
+                        Box::new(AST {
+                            kind: ASTKind::Int(1)
+                        })
+                    )
+                }))
+            }
+        )
     }
 }
