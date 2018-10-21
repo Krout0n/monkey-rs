@@ -22,6 +22,10 @@ pub enum ASTKind {
         name: String,
         args: Vec<AST>,
     },
+    FnDef {
+        args: Vec<String>,
+        stmts: Vec<AST>,
+    },
 }
 
 #[derive(Debug, PartialEq)]
@@ -75,7 +79,7 @@ impl AST {
         }
     }
 
-    fn compound_statement(stmts: Vec<AST>) -> AST {
+    pub fn compound_statement(stmts: Vec<AST>) -> AST {
         AST {
             kind: ASTKind::Compound(stmts),
         }
@@ -104,6 +108,12 @@ impl AST {
     fn fn_call(name: String, args: Vec<AST>) -> AST {
         AST {
             kind: ASTKind::FnCall { name, args },
+        }
+    }
+
+    fn fn_def(args: Vec<String>, stmts: Vec<AST>) -> AST {
+        AST {
+            kind: ASTKind::FnDef { args, stmts },
         }
     }
 }
@@ -237,8 +247,48 @@ impl<'a> Parser<'a> {
         left
     }
 
+    fn fn_def(&mut self) -> AST {
+        self.get();
+        let mut args = vec![];
+        assert_eq!(self.get(), Some(Token::LParen));
+        loop {
+            let t = self.get();
+            if let Some(s) = t {
+                if let Token::Ident(s) = s {
+                    args.push(s);
+                } else {
+                    panic!(
+                        "parse error: illegal token for args of function defition {:?}",
+                        s
+                    )
+                }
+            } else {
+                panic!(
+                    "parse error: illegal token for args of function defition {:?}",
+                    t
+                )
+            }
+            match self.peek() {
+                Some(Token::RParen) => break,
+                Some(Token::Comma) => self.get(),
+                _ => panic!("parse error: unexpected token {:?}"),
+            };
+        }
+        self.get();
+
+        if let ASTKind::Compound(stmts) = self.compound_statement().kind {
+            AST::fn_def(args, stmts)
+        } else {
+            panic!("")
+        }
+    }
+
     fn expression(&mut self) -> AST {
-        self.additive()
+        match self.peek() {
+            Some(Token::Function) => self.fn_def(),
+            Some(_) => self.additive(),
+            _ => unimplemented!(),
+        }
     }
 
     fn expression_statement(&mut self) -> AST {
@@ -542,5 +592,35 @@ mod tests {
                 vec![AST::add(AST::int(1), AST::int(2)), AST::int(3)]
             )
         );
+    }
+
+    #[test]
+    fn parse_fndef() {
+        let t = vec![
+            Token::Function,
+            Token::LParen,
+            Token::Ident("x".to_string()),
+            Token::Comma,
+            Token::Ident("y".to_string()),
+            Token::RParen,
+            Token::LBrace,
+            Token::Return,
+            Token::Ident("x".to_string()),
+            Token::Plus,
+            Token::Ident("y".to_string()),
+            Token::Semicolon,
+            Token::RBrace,
+        ];
+        let mut p = Parser::new(&t);
+        assert_eq!(
+            p.fn_def(),
+            AST::fn_def(
+                vec!["x".to_string(), "y".to_string()],
+                vec![AST::return_stmt(AST::add(
+                    AST::ident("x".to_string()),
+                    AST::ident("y".to_string())
+                ))]
+            )
+        )
     }
 }
