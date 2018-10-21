@@ -18,6 +18,10 @@ pub enum ASTKind {
         stmt: Box<AST>,
         else_stmt: Option<Box<AST>>,
     },
+    FnCall {
+        name: String,
+        args: Vec<AST>,
+    },
 }
 
 #[derive(Debug, PartialEq)]
@@ -96,17 +100,15 @@ impl AST {
             }
         }
     }
+
+    fn fn_call(name: String, args: Vec<AST>) -> AST {
+        AST {
+            kind: ASTKind::FnCall { name, args },
+        }
+    }
 }
 
 impl<'a> Parser<'a> {
-    fn token_to_ast(t: Token) -> AST {
-        match t {
-            Token::Int(i) => AST::int(i),
-            Token::Ident(s) => AST::ident(s),
-            _ => unimplemented!(),
-        }
-    }
-
     fn return_stmt(&mut self) -> AST {
         assert_eq!(self.get(), Some(Token::Return));
         AST::return_stmt(self.expression_statement())
@@ -179,7 +181,25 @@ impl<'a> Parser<'a> {
     fn primary(&mut self) -> AST {
         let t = self.get();
         match t {
-            Some(Token::Int(_)) | Some(Token::Ident(_)) => Parser::token_to_ast(t.unwrap()),
+            Some(Token::Int(i)) => AST::int(i),
+            Some(Token::Ident(s)) => {
+                if let Some(Token::LParen) = self.peek() {
+                    self.get();
+                    let mut args = vec![];
+                    loop {
+                        args.push(self.expression());
+                        match self.peek() {
+                            Some(Token::RParen) => break,
+                            Some(Token::Comma) => self.get(),
+                            _ => panic!("parse error: unexpected token {:?}"),
+                        };
+                    }
+                    self.get();
+                    AST::fn_call(s, args)
+                } else {
+                    AST::ident(s)
+                }
+            }
             Some(_) => panic!(
                 "unexpected token! {:?}, btw next one is {:?}",
                 t.unwrap(),
@@ -336,7 +356,7 @@ mod tests {
     }
 
     #[test]
-    fn test_letstmt() {
+    fn test_let_stmt() {
         let t = vec![
             Token::Let,
             Token::Ident("x".to_string()),
@@ -486,6 +506,40 @@ mod tests {
                 AST::int(1),
                 AST::return_stmt(AST::int(10)),
                 Some(AST::return_stmt(AST::int(20)))
+            )
+        );
+    }
+
+    #[test]
+    fn parse_fncall() {
+        let t = vec![
+            Token::Ident("x".to_string()),
+            Token::LParen,
+            Token::Int(1),
+            Token::RParen,
+        ];
+        let mut p = Parser::new(&t);
+        assert_eq!(
+            p.primary(),
+            AST::fn_call("x".to_string(), vec![AST::int(1)])
+        );
+
+        let t = vec![
+            Token::Ident("x".to_string()),
+            Token::LParen,
+            Token::Int(1),
+            Token::Plus,
+            Token::Int(2),
+            Token::Comma,
+            Token::Int(3),
+            Token::RParen,
+        ];
+        let mut p = Parser::new(&t);
+        assert_eq!(
+            p.primary(),
+            AST::fn_call(
+                "x".to_string(),
+                vec![AST::add(AST::int(1), AST::int(2)), AST::int(3)]
             )
         );
     }
