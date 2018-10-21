@@ -6,10 +6,18 @@ pub enum ASTKind {
     Ident(String),
     Add(Box<AST>, Box<AST>),
     Multi(Box<AST>, Box<AST>),
-    Let { name: Box<ASTKind>, value: Box<AST> },
+    Let {
+        name: Box<ASTKind>,
+        value: Box<AST>,
+    },
     Minus(Box<AST>, Box<AST>),
     Return(Box<AST>),
     Compound(Vec<AST>),
+    If {
+        cond: Box<AST>,
+        stmt: Box<AST>,
+        else_stmt: Option<Box<AST>>,
+    },
 }
 
 #[derive(Debug, PartialEq)]
@@ -21,6 +29,52 @@ pub struct Parser<'a> {
     tokens: &'a [Token],
     index: usize,
     pub result: Vec<AST>,
+}
+
+impl AST {
+    fn int(i: i32) -> AST {
+        AST {
+            kind: ASTKind::Int(i),
+        }
+    }
+
+    fn add(left: AST, right: AST) -> AST {
+        AST {
+            kind: ASTKind::Add(Box::new(left), Box::new(right)),
+        }
+    }
+
+    fn return_stmt(expr: AST) -> AST {
+        AST {
+            kind: ASTKind::Return(Box::new(expr)),
+        }
+    }
+
+    fn compound_statement(stmts: Vec<AST>) -> AST {
+        AST {
+            kind: ASTKind::Compound(stmts),
+        }
+    }
+
+    fn if_stmt(cond: AST, stmt: AST, else_stmt: Option<AST>) -> AST {
+        if let Some(e) = else_stmt {
+            AST {
+                kind: ASTKind::If {
+                    cond: Box::new(cond),
+                    stmt: Box::new(stmt),
+                    else_stmt: Some(Box::new(e)),
+                },
+            }
+        } else {
+            AST {
+                kind: ASTKind::If {
+                    cond: Box::new(cond),
+                    stmt: Box::new(stmt),
+                    else_stmt: None,
+                },
+            }
+        }
+    }
 }
 
 impl<'a> Parser<'a> {
@@ -62,6 +116,20 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn if_stmt(&mut self) -> AST {
+        self.get();
+        let cond = self.expression();
+        let stmt = self.statement();
+        let else_stmt = match self.peek() {
+            Some(Token::Else) => {
+                self.get();
+                Some(self.statement())
+            },
+            _ => None
+        };
+        AST::if_stmt(cond, stmt, else_stmt)
+    }
+
     fn peek(&self) -> Option<Token> {
         if let Some(t) = self.tokens.get(self.index) {
             Some(t.clone())
@@ -88,12 +156,17 @@ impl<'a> Parser<'a> {
     }
 
     fn primary(&mut self) -> AST {
-        if let Some(token) = self.peek() {
-            self.get();
-            let kind = Parser::token_to_ast(token);
-            AST { kind }
-        } else {
-            panic!("error! {:?}", self.peek());
+        let t = self.get();
+        match t {
+            Some(Token::Int(_)) | Some(Token::Ident(_)) => AST {
+                kind: Parser::token_to_ast(t.unwrap()),
+            },
+            Some(_) => panic!(
+                "unexpected token! {:?}, btw next one is {:?}",
+                t.unwrap(),
+                self.tokens.get(self.index + 1)
+            ),
+            None => panic!("parse error: try to parse primary but got None."),
         }
     }
 
@@ -144,6 +217,7 @@ impl<'a> Parser<'a> {
             Some(Token::Let) => self.let_stmt(),
             Some(Token::Return) => self.return_stmt(),
             Some(Token::LBrace) => self.compound_statement(),
+            Some(Token::If) => self.if_stmt(),
             Some(_) => self.expression_statement(),
             None => panic!("parse error: try to parse statement but got None"),
         }
@@ -489,6 +563,68 @@ mod tests {
                     }
                 ])
             }
+        );
+    }
+
+    #[test]
+    fn parse_if_stmt() {
+        let t = vec![
+            Token::If,
+            Token::Int(1),
+            Token::Return,
+            Token::Int(10),
+            Token::Semicolon,
+        ];
+        let mut p = Parser::new(&t);
+        assert_eq!(
+            p.if_stmt(),
+            AST::if_stmt(AST::int(1), AST::return_stmt(AST::int(10)), None)
+        );
+
+        // if 1 {
+        //     1;
+        //     2;
+        // }
+        let t = vec![
+            Token::If,
+            Token::Int(1),
+            Token::LBrace,
+            Token::Int(1),
+            Token::Semicolon,
+            Token::Int(2),
+            Token::Semicolon,
+            Token::RBrace,
+        ];
+        let mut p = Parser::new(&t);
+        assert_eq!(
+            p.if_stmt(),
+            AST::if_stmt(
+                AST::int(1),
+                AST::compound_statement(vec![AST::int(1), AST::int(2)]),
+                None
+            )
+        );
+
+        let t = vec![
+            Token::If,
+            Token::Int(1),
+            Token::Return,
+            Token::Int(10),
+            Token::Semicolon,
+            Token::Else,
+            Token::Return,
+            Token::Int(20),
+            Token::Semicolon,
+            Token::RBrace,
+        ];
+        let mut p = Parser::new(&t);
+        assert_eq!(
+            p.if_stmt(),
+            AST::if_stmt(
+                AST::int(1),
+                AST::return_stmt(AST::int(10)),
+                Some(AST::return_stmt(AST::int(20)))
+            )
         );
     }
 }
