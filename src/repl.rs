@@ -1,6 +1,7 @@
 use lexer::*;
 use token::*;
 
+#[allow(unused_imports)]
 use std::io::{self, stdin, Read, Write};
 
 pub fn start() {

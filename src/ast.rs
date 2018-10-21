@@ -1,4 +1,3 @@
-use lexer::*;
 use token::Token;
 
 #[derive(Debug, PartialEq)]
@@ -82,9 +81,6 @@ impl<'a> Parser<'a> {
             AST { kind }
         } else {
             panic!("error! {:?}", self.peek());
-            AST {
-                kind: ASTKind::Int(-114514),
-            }
         }
     }
 
@@ -130,16 +126,26 @@ impl<'a> Parser<'a> {
         ast
     }
 
+    fn statement(&mut self) -> AST {
+        match self.peek() {
+            Some(Token::Let) => self.let_stmt(),
+            Some(Token::Return) => self.return_stmt(),
+            Some(_) => self.expression_statement(),
+            None => panic!("parse error: try to parse statement but got None"),
+        }
+    }
+
     pub fn parse(&mut self) {
         while self.peek() != Some(Token::EOF) {
-            let node = self.expression_statement();
+            let node = self.statement();
             self.result.push(node);
         }
     }
 }
 
+#[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{ASTKind, Parser, Token, AST};
     #[test]
     fn parse_one_plus_two() {
         let tokens: [Token; 4] = [Token::Int(1), Token::Plus, Token::Int(2), Token::EOF];
@@ -289,7 +295,7 @@ mod tests {
     #[test]
     fn test_peek() {
         let tokens: [Token; 4] = [Token::Int(1), Token::Plus, Token::Int(2), Token::EOF];
-        let mut p = Parser::new(&tokens);
+        let p = Parser::new(&tokens);
         assert_eq!(p.peek(), Some(Token::Int(1)));
         assert_eq!(p.index, 0);
     }
@@ -396,7 +402,7 @@ mod tests {
             Token::Star,
             Token::Int(4),
             Token::Semicolon,
-            Token::EOF
+            Token::EOF,
         ];
         let mut p = Parser::new(&t);
         p.parse();

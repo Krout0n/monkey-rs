@@ -1,4 +1,4 @@
-use token::*;
+use token::{lookup_keyword, Token};
 
 #[derive(Debug)]
 pub struct Lexer {
@@ -100,9 +100,7 @@ impl Lexer {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use lexer::*;
-    use token::*;
+    use super::{Lexer, Token};
 
     #[test]
     fn some_operand() {

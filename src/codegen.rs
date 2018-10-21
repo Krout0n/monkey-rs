@@ -1,6 +1,6 @@
 use ast::*;
-use std::boxed::Box;
 
+#[allow(dead_code)]
 fn gen_code(tree: AST) {
     match tree.kind {
         ASTKind::Int(i) => println!("  pushq %{}", i),
@@ -28,8 +28,9 @@ fn gen_code(tree: AST) {
     }
 }
 
+#[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{gen_code, ASTKind, AST};
     #[test]
     fn simple_tree() {
         // gen_code(AST {
