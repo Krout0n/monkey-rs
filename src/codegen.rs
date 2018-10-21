@@ -14,6 +14,16 @@ fn gen_code(tree: AST) {
             println!("  addq %rax, %rdx");
             println!("  pushq %rax");
         }
+        ASTKind::Multi(lhs, rhs) => {
+            // gen_code(Box::into_raw(lhs));
+            // gen_code(Box::into_raw(lhs));
+            gen_code(*lhs);
+            gen_code(*rhs);
+            println!("  popq %rax");
+            println!("  popq %rdx");
+            println!("  imul %rax, %rdx");
+            println!("  pushq %rax");
+        }
         _ => (),
     }
 }
@@ -26,19 +36,37 @@ mod tests {
         //     kind: ASTKind::Int(10),
         // });
 
-        gen_code(AST {
-            kind: ASTKind::Add(
-                Box::new(AST {
-                    kind: ASTKind::Int(10),
-                }),
-                Box::new(AST {
-                    kind: ASTKind::Int(20),
-                }),
-            ),
-        });
+        // gen_code(AST {
+        //     kind: ASTKind::Add(
+        //         Box::new(AST {
+        //             kind: ASTKind::Int(10),
+        //         }),
+        //         Box::new(AST {
+        //             kind: ASTKind::Int(20),
+        //         }),
+        //     ),
+        // });
+
+        // gen_code(AST {
+        //     kind: ASTKind::Add(
+        //         Box::new(AST {
+        //             kind: ASTKind::Add(
+        //                 Box::new(AST {
+        //                     kind: ASTKind::Int(1),
+        //                 }),
+        //                 Box::new(AST {
+        //                     kind: ASTKind::Int(2),
+        //                 }),
+        //             ),
+        //         }),
+        //         Box::new(AST {
+        //             kind: ASTKind::Int(3),
+        //         }),
+        //     ),
+        // });
 
         gen_code(AST {
-            kind: ASTKind::Add(
+            kind: ASTKind::Multi(
                 Box::new(AST {
                     kind: ASTKind::Add(
                         Box::new(AST {
@@ -53,6 +81,6 @@ mod tests {
                     kind: ASTKind::Int(3),
                 }),
             ),
-        })
+        });
     }
 }

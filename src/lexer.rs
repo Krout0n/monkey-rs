@@ -42,6 +42,7 @@ impl Lexer {
                 }
             }
             Some('+') => Token::Plus,
+            Some('*') => Token::Star,
             Some('<') => Token::LT,
             Some('>') => Token::GT,
             Some(';') => Token::Semicolon,
