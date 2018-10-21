@@ -7,7 +7,8 @@ pub enum ASTKind {
     Ident(String),
     Add(Box<AST>, Box<AST>),
     Multi(Box<AST>, Box<AST>),
-    // Minus(Box<AST>, Box<AST>),
+    Let { name: Box<ASTKind>, value: Box<AST> },
+    Minus(Box<AST>, Box<AST>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -27,6 +28,16 @@ impl<'a> Parser<'a> {
             Token::Int(i) => ASTKind::Int(i),
             Token::Ident(s) => ASTKind::Ident(s),
             _ => unimplemented!(),
+        }
+    }
+
+    fn let_stmt(&mut self) -> AST {
+        assert_eq!(self.get(), Some(Token::Let));
+        let name = Box::new(Parser::token_to_ast(self.get().unwrap()));
+        assert_eq!(self.get(), Some(Token::Assign));
+        let value = Box::new(self.expression());
+        AST {
+            kind: ASTKind::Let { name, value },
         }
     }
 
@@ -100,8 +111,12 @@ impl<'a> Parser<'a> {
         left
     }
 
+    fn expression(&mut self) -> AST {
+        self.additive()
+    }
+
     pub fn parse(&mut self) {
-        let node = self.additive();
+        let node = self.expression();
         self.result.push(node);
     }
 }
@@ -217,6 +232,49 @@ mod tests {
     }
 
     #[test]
+    fn parse_one_plus_two_times_three_plus_four() {
+        let t = vec![
+            Token::Int(1),
+            Token::Plus,
+            Token::Int(2),
+            Token::Star,
+            Token::Int(3),
+            Token::Plus,
+            Token::Int(4),
+            Token::EOF,
+        ];
+        let mut p = Parser::new(&t);
+        p.parse();
+        assert_eq!(
+            p.result,
+            vec![AST {
+                kind: ASTKind::Add(
+                    Box::new(AST {
+                        kind: ASTKind::Add(
+                            Box::new(AST {
+                                kind: ASTKind::Int(1)
+                            }),
+                            Box::new(AST {
+                                kind: ASTKind::Multi(
+                                    Box::new(AST {
+                                        kind: ASTKind::Int(2)
+                                    }),
+                                    Box::new(AST {
+                                        kind: ASTKind::Int(3)
+                                    })
+                                )
+                            })
+                        )
+                    }),
+                    Box::new(AST {
+                        kind: ASTKind::Int(4)
+                    }),
+                )
+            }]
+        )
+    }
+
+    #[test]
     fn test_peek() {
         let mut p = Parser::new(&tokens);
         assert_eq!(p.peek(), Some(Token::Int(1)));
@@ -229,5 +287,60 @@ mod tests {
         assert_eq!(p.get(), Some(Token::Int(1)));
         assert_eq!(p.get(), Some(Token::Plus));
         assert_eq!(p.index, 2);
+    }
+
+    #[test]
+    fn test_letstmt() {
+        let t = vec![
+            Token::Let,
+            Token::Ident("x".to_string()),
+            Token::Assign,
+            Token::Int(10),
+            Token::Semicolon,
+            Token::EOF,
+        ];
+        let mut p = Parser::new(&t);
+        assert_eq!(
+            p.let_stmt(),
+            AST {
+                kind: ASTKind::Let {
+                    name: Box::new(ASTKind::Ident("x".to_string())),
+                    value: Box::new(AST {
+                        kind: ASTKind::Int(10)
+                    })
+                }
+            }
+        );
+
+        let t = vec![
+            Token::Let,
+            Token::Ident("x".to_string()),
+            Token::Assign,
+            Token::Int(10),
+            Token::Plus,
+            Token::Int(20),
+            Token::Semicolon,
+            Token::EOF,
+        ];
+
+        let mut p = Parser::new(&t);
+        assert_eq!(
+            p.let_stmt(),
+            AST {
+                kind: ASTKind::Let {
+                    name: Box::new(ASTKind::Ident("x".to_string())),
+                    value: Box::new(AST {
+                        kind: ASTKind::Add(
+                            Box::new(AST {
+                                kind: ASTKind::Int(10)
+                            }),
+                            Box::new(AST {
+                                kind: ASTKind::Int(20)
+                            })
+                        )
+                    })
+                }
+            }
+        );
     }
 }
