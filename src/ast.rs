@@ -81,7 +81,7 @@ impl<'a> Parser<'a> {
             let kind = Parser::token_to_ast(token);
             AST { kind }
         } else {
-            panic!("error!");
+            panic!("error! {:?}", self.peek());
             AST {
                 kind: ASTKind::Int(-114514),
             }
@@ -131,8 +131,10 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse(&mut self) {
-        let node = self.expression();
-        self.result.push(node);
+        while self.peek() != Some(Token::EOF) {
+            let node = self.expression_statement();
+            self.result.push(node);
+        }
     }
 }
 
@@ -381,5 +383,47 @@ mod tests {
                 }))
             }
         )
+    }
+
+    #[test]
+    fn parse_some_statements() {
+        let t = vec![
+            Token::Int(1),
+            Token::Plus,
+            Token::Int(2),
+            Token::Semicolon,
+            Token::Int(3),
+            Token::Star,
+            Token::Int(4),
+            Token::Semicolon,
+            Token::EOF
+        ];
+        let mut p = Parser::new(&t);
+        p.parse();
+        assert_eq!(
+            p.result,
+            vec![
+                AST {
+                    kind: ASTKind::Add(
+                        Box::new(AST {
+                            kind: ASTKind::Int(1)
+                        }),
+                        Box::new(AST {
+                            kind: ASTKind::Int(2)
+                        })
+                    )
+                },
+                AST {
+                    kind: ASTKind::Multi(
+                        Box::new(AST {
+                            kind: ASTKind::Int(3)
+                        }),
+                        Box::new(AST {
+                            kind: ASTKind::Int(4)
+                        })
+                    )
+                }
+            ]
+        );
     }
 }

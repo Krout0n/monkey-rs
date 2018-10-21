@@ -65,20 +65,45 @@ mod tests {
         //     ),
         // });
 
+        // gen_code(AST {
+        //     kind: ASTKind::Multi(
+        //         Box::new(AST {
+        //             kind: ASTKind::Add(
+        //                 Box::new(AST {
+        //                     kind: ASTKind::Int(1),
+        //                 }),
+        //                 Box::new(AST {
+        //                     kind: ASTKind::Int(2),
+        //                 }),
+        //             ),
+        //         }),
+        //         Box::new(AST {
+        //             kind: ASTKind::Int(3),
+        //         }),
+        //     ),
+        // });
+
         gen_code(AST {
-            kind: ASTKind::Multi(
+            kind: ASTKind::Add(
                 Box::new(AST {
                     kind: ASTKind::Add(
                         Box::new(AST {
                             kind: ASTKind::Int(1),
                         }),
                         Box::new(AST {
-                            kind: ASTKind::Int(2),
+                            kind: ASTKind::Multi(
+                                Box::new(AST {
+                                    kind: ASTKind::Int(2),
+                                }),
+                                Box::new(AST {
+                                    kind: ASTKind::Int(3),
+                                }),
+                            ),
                         }),
                     ),
                 }),
                 Box::new(AST {
-                    kind: ASTKind::Int(3),
+                    kind: ASTKind::Int(4),
                 }),
             ),
         });
