@@ -7,8 +7,8 @@ pub enum ASTKind {
     Add(Box<AST>, Box<AST>),
     Multi(Box<AST>, Box<AST>),
     Let {
-        name: Box<ASTKind>,
-        value: Box<AST>,
+        name: String,
+        expr: Box<AST>,
     },
     Minus(Box<AST>, Box<AST>),
     Return(Box<AST>),
@@ -38,9 +38,30 @@ impl AST {
         }
     }
 
+    fn ident(s: String) -> AST {
+        AST {
+            kind: ASTKind::Ident(s),
+        }
+    }
+
     fn add(left: AST, right: AST) -> AST {
         AST {
             kind: ASTKind::Add(Box::new(left), Box::new(right)),
+        }
+    }
+
+    fn multi(left: AST, right: AST) -> AST {
+        AST {
+            kind: ASTKind::Multi(Box::new(left), Box::new(right)),
+        }
+    }
+
+    fn let_stmt(name: String, expr: AST) -> AST {
+        AST {
+            kind: ASTKind::Let {
+                name,
+                expr: Box::new(expr),
+            },
         }
     }
 
@@ -78,30 +99,32 @@ impl AST {
 }
 
 impl<'a> Parser<'a> {
-    fn token_to_ast(t: Token) -> ASTKind {
+    fn token_to_ast(t: Token) -> AST {
         match t {
-            Token::Int(i) => ASTKind::Int(i),
-            Token::Ident(s) => ASTKind::Ident(s),
+            Token::Int(i) => AST::int(i),
+            Token::Ident(s) => AST::ident(s),
             _ => unimplemented!(),
         }
     }
 
     fn return_stmt(&mut self) -> AST {
         assert_eq!(self.get(), Some(Token::Return));
-        AST {
-            kind: ASTKind::Return(Box::new(self.expression_statement())),
-        }
+        AST::return_stmt(self.expression_statement())
     }
 
     fn let_stmt(&mut self) -> AST {
         assert_eq!(self.get(), Some(Token::Let));
-        let name = Box::new(Parser::token_to_ast(self.get().unwrap()));
+        let name = match self.peek() {
+            Some(Token::Ident(s)) => {
+                self.get();
+                s
+            }
+            _ => panic!("parse error: expect ident but got {:?}", self.peek()),
+        };
         assert_eq!(self.get(), Some(Token::Assign));
-        let value = Box::new(self.expression());
+        let expr = self.expression();
         assert_eq!(self.get(), Some(Token::Semicolon));
-        AST {
-            kind: ASTKind::Let { name, value },
-        }
+        AST::let_stmt(name, expr)
     }
 
     fn compound_statement(&mut self) -> AST {
@@ -111,9 +134,7 @@ impl<'a> Parser<'a> {
             stmts.push(self.statement());
         }
         self.get();
-        AST {
-            kind: ASTKind::Compound(stmts),
-        }
+        AST::compound_statement(stmts)
     }
 
     fn if_stmt(&mut self) -> AST {
@@ -124,8 +145,8 @@ impl<'a> Parser<'a> {
             Some(Token::Else) => {
                 self.get();
                 Some(self.statement())
-            },
-            _ => None
+            }
+            _ => None,
         };
         AST::if_stmt(cond, stmt, else_stmt)
     }
@@ -158,9 +179,7 @@ impl<'a> Parser<'a> {
     fn primary(&mut self) -> AST {
         let t = self.get();
         match t {
-            Some(Token::Int(_)) | Some(Token::Ident(_)) => AST {
-                kind: Parser::token_to_ast(t.unwrap()),
-            },
+            Some(Token::Int(_)) | Some(Token::Ident(_)) => Parser::token_to_ast(t.unwrap()),
             Some(_) => panic!(
                 "unexpected token! {:?}, btw next one is {:?}",
                 t.unwrap(),
@@ -179,9 +198,7 @@ impl<'a> Parser<'a> {
             }
             self.get();
             let right = self.multiplicative();
-            left = AST {
-                kind: ASTKind::Add(Box::new(left), Box::new(right)),
-            }
+            left = AST::add(left, right);
         }
         left
     }
@@ -195,9 +212,7 @@ impl<'a> Parser<'a> {
             }
             self.get();
             let right = self.primary();
-            left = AST {
-                kind: ASTKind::Multi(Box::new(left), Box::new(right)),
-            }
+            left = AST::multi(left, right);
         }
         left
     }
@@ -233,24 +248,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{ASTKind, Parser, Token, AST};
+    use super::{Parser, Token, AST};
     #[test]
     fn parse_one_plus_two() {
         let tokens: [Token; 4] = [Token::Int(1), Token::Plus, Token::Int(2), Token::EOF];
         let mut p = Parser::new(&tokens);
-        assert_eq!(
-            p.additive(),
-            AST {
-                kind: ASTKind::Add(
-                    Box::new(AST {
-                        kind: ASTKind::Int(1)
-                    }),
-                    Box::new(AST {
-                        kind: ASTKind::Int(2)
-                    })
-                )
-            }
-        )
+        assert_eq!(p.additive(), AST::add(AST::int(1), AST::int(2)))
     }
 
     #[test]
@@ -266,23 +269,7 @@ mod tests {
         let mut p = Parser::new(&t);
         assert_eq!(
             p.additive(),
-            AST {
-                kind: ASTKind::Add(
-                    Box::new(AST {
-                        kind: ASTKind::Add(
-                            Box::new(AST {
-                                kind: ASTKind::Int(1)
-                            }),
-                            Box::new(AST {
-                                kind: ASTKind::Int(2)
-                            })
-                        )
-                    }),
-                    Box::new(AST {
-                        kind: ASTKind::Int(3)
-                    })
-                )
-            }
+            AST::add(AST::add(AST::int(1), AST::int(2)), AST::int(3))
         )
     }
 
@@ -290,19 +277,7 @@ mod tests {
     fn parse_one_times_two() {
         let t = vec![Token::Int(1), Token::Star, Token::Int(2), Token::EOF];
         let mut p = Parser::new(&t);
-        assert_eq!(
-            p.multiplicative(),
-            AST {
-                kind: ASTKind::Multi(
-                    Box::new(AST {
-                        kind: ASTKind::Int(1)
-                    }),
-                    Box::new(AST {
-                        kind: ASTKind::Int(2)
-                    })
-                )
-            }
-        )
+        assert_eq!(p.multiplicative(), AST::multi(AST::int(1), AST::int(2)))
     }
 
     #[test]
@@ -318,23 +293,7 @@ mod tests {
         let mut p = Parser::new(&t);
         assert_eq!(
             p.additive(),
-            AST {
-                kind: ASTKind::Add(
-                    Box::new(AST {
-                        kind: ASTKind::Int(1)
-                    }),
-                    Box::new(AST {
-                        kind: ASTKind::Multi(
-                            Box::new(AST {
-                                kind: ASTKind::Int(2)
-                            }),
-                            Box::new(AST {
-                                kind: ASTKind::Int(3)
-                            })
-                        )
-                    }),
-                )
-            }
+            AST::add(AST::int(1), AST::multi(AST::int(2), AST::int(3)))
         )
     }
 
@@ -348,35 +307,14 @@ mod tests {
             Token::Int(3),
             Token::Plus,
             Token::Int(4),
-            Token::EOF,
         ];
         let mut p = Parser::new(&t);
         assert_eq!(
             p.additive(),
-            AST {
-                kind: ASTKind::Add(
-                    Box::new(AST {
-                        kind: ASTKind::Add(
-                            Box::new(AST {
-                                kind: ASTKind::Int(1)
-                            }),
-                            Box::new(AST {
-                                kind: ASTKind::Multi(
-                                    Box::new(AST {
-                                        kind: ASTKind::Int(2)
-                                    }),
-                                    Box::new(AST {
-                                        kind: ASTKind::Int(3)
-                                    })
-                                )
-                            })
-                        )
-                    }),
-                    Box::new(AST {
-                        kind: ASTKind::Int(4)
-                    }),
-                )
-            }
+            AST::add(
+                AST::add(AST::int(1), AST::multi(AST::int(2), AST::int(3))),
+                AST::int(4)
+            )
         )
     }
 
@@ -405,20 +343,9 @@ mod tests {
             Token::Assign,
             Token::Int(10),
             Token::Semicolon,
-            Token::EOF,
         ];
         let mut p = Parser::new(&t);
-        assert_eq!(
-            p.let_stmt(),
-            AST {
-                kind: ASTKind::Let {
-                    name: Box::new(ASTKind::Ident("x".to_string())),
-                    value: Box::new(AST {
-                        kind: ASTKind::Int(10)
-                    })
-                }
-            }
-        );
+        assert_eq!(p.let_stmt(), AST::let_stmt("x".to_string(), AST::int(10)));
 
         let t = vec![
             Token::Let,
@@ -428,27 +355,11 @@ mod tests {
             Token::Plus,
             Token::Int(20),
             Token::Semicolon,
-            Token::EOF,
         ];
-
         let mut p = Parser::new(&t);
         assert_eq!(
             p.let_stmt(),
-            AST {
-                kind: ASTKind::Let {
-                    name: Box::new(ASTKind::Ident("x".to_string())),
-                    value: Box::new(AST {
-                        kind: ASTKind::Add(
-                            Box::new(AST {
-                                kind: ASTKind::Int(10)
-                            }),
-                            Box::new(AST {
-                                kind: ASTKind::Int(20)
-                            })
-                        )
-                    })
-                }
-            }
+            AST::let_stmt("x".to_string(), AST::add(AST::int(10), AST::int(20)))
         );
     }
 
@@ -464,18 +375,7 @@ mod tests {
         let mut p = Parser::new(&t);
         assert_eq!(
             p.return_stmt(),
-            AST {
-                kind: ASTKind::Return(Box::new(AST {
-                    kind: ASTKind::Add(
-                        Box::new(AST {
-                            kind: ASTKind::Ident("x".to_string())
-                        }),
-                        Box::new(AST {
-                            kind: ASTKind::Int(1)
-                        })
-                    )
-                }))
-            }
+            AST::return_stmt(AST::add(AST::ident("x".to_string()), AST::int(1)))
         )
     }
 
@@ -497,26 +397,8 @@ mod tests {
         assert_eq!(
             p.result,
             vec![
-                AST {
-                    kind: ASTKind::Add(
-                        Box::new(AST {
-                            kind: ASTKind::Int(1)
-                        }),
-                        Box::new(AST {
-                            kind: ASTKind::Int(2)
-                        })
-                    )
-                },
-                AST {
-                    kind: ASTKind::Multi(
-                        Box::new(AST {
-                            kind: ASTKind::Int(3)
-                        }),
-                        Box::new(AST {
-                            kind: ASTKind::Int(4)
-                        })
-                    )
-                }
+                AST::add(AST::int(1), AST::int(2)),
+                AST::multi(AST::int(3), AST::int(4))
             ]
         );
     }
@@ -539,30 +421,10 @@ mod tests {
         let mut p = Parser::new(&t);
         assert_eq!(
             p.compound_statement(),
-            AST {
-                kind: ASTKind::Compound(vec![
-                    AST {
-                        kind: ASTKind::Add(
-                            Box::new(AST {
-                                kind: ASTKind::Int(1)
-                            }),
-                            Box::new(AST {
-                                kind: ASTKind::Int(2)
-                            })
-                        )
-                    },
-                    AST {
-                        kind: ASTKind::Multi(
-                            Box::new(AST {
-                                kind: ASTKind::Int(3)
-                            }),
-                            Box::new(AST {
-                                kind: ASTKind::Int(4)
-                            })
-                        )
-                    }
-                ])
-            }
+            AST::compound_statement(vec![
+                AST::add(AST::int(1), AST::int(2)),
+                AST::multi(AST::int(3), AST::int(4))
+            ])
         );
     }
 
