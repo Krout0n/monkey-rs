@@ -9,6 +9,7 @@ pub enum ASTKind {
     Let { name: Box<ASTKind>, value: Box<AST> },
     Minus(Box<AST>, Box<AST>),
     Return(Box<AST>),
+    Compound(Vec<AST>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -46,6 +47,18 @@ impl<'a> Parser<'a> {
         assert_eq!(self.get(), Some(Token::Semicolon));
         AST {
             kind: ASTKind::Let { name, value },
+        }
+    }
+
+    fn compound_statement(&mut self) -> AST {
+        self.get();
+        let mut stmts = vec![];
+        while self.peek() != Some(Token::RBrace) {
+            stmts.push(self.statement());
+        }
+        self.get();
+        AST {
+            kind: ASTKind::Compound(stmts),
         }
     }
 
@@ -130,6 +143,7 @@ impl<'a> Parser<'a> {
         match self.peek() {
             Some(Token::Let) => self.let_stmt(),
             Some(Token::Return) => self.return_stmt(),
+            Some(Token::LBrace) => self.compound_statement(),
             Some(_) => self.expression_statement(),
             None => panic!("parse error: try to parse statement but got None"),
         }
@@ -430,6 +444,51 @@ mod tests {
                     )
                 }
             ]
+        );
+    }
+
+    #[test]
+    fn parse_compound() {
+        let t = vec![
+            Token::LBrace,
+            Token::Int(1),
+            Token::Plus,
+            Token::Int(2),
+            Token::Semicolon,
+            Token::Int(3),
+            Token::Star,
+            Token::Int(4),
+            Token::Semicolon,
+            Token::RBrace,
+            Token::EOF,
+        ];
+        let mut p = Parser::new(&t);
+        assert_eq!(
+            p.compound_statement(),
+            AST {
+                kind: ASTKind::Compound(vec![
+                    AST {
+                        kind: ASTKind::Add(
+                            Box::new(AST {
+                                kind: ASTKind::Int(1)
+                            }),
+                            Box::new(AST {
+                                kind: ASTKind::Int(2)
+                            })
+                        )
+                    },
+                    AST {
+                        kind: ASTKind::Multi(
+                            Box::new(AST {
+                                kind: ASTKind::Int(3)
+                            }),
+                            Box::new(AST {
+                                kind: ASTKind::Int(4)
+                            })
+                        )
+                    }
+                ])
+            }
         );
     }
 }
