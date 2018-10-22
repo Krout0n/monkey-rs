@@ -4,6 +4,7 @@ use token::Token;
 pub enum ASTKind {
     Int(i32),
     Ident(String),
+    Bool(bool),
     Add(Box<AST>, Box<AST>),
     Multi(Box<AST>, Box<AST>),
     Let {
@@ -49,6 +50,12 @@ impl AST {
     pub fn ident(s: String) -> AST {
         AST {
             kind: ASTKind::Ident(s),
+        }
+    }
+
+    pub fn bool(b: bool) -> AST {
+        AST {
+            kind: ASTKind::Bool(b)
         }
     }
 
@@ -210,6 +217,8 @@ impl<'a> Parser<'a> {
                     AST::ident(s)
                 }
             }
+            Some(Token::True) => AST::bool(true),
+            Some(Token::False) => AST::bool(false),
             Some(_) => panic!(
                 "unexpected token! {:?}, btw next one is {:?}",
                 t.unwrap(),

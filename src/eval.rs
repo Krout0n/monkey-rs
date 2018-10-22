@@ -4,6 +4,7 @@ use ast::{ASTKind, AST};
 pub enum Object {
     Integer(i32),
     Bool(bool),
+    Null
 }
 
 pub fn eval(node: AST) -> Object {
@@ -13,6 +14,18 @@ pub fn eval(node: AST) -> Object {
             (Object::Integer(l), Object::Integer(r)) => Object::Integer(l + r),
             (_, _) => panic!("+ operand supports only integer"),
         },
+        ASTKind::If{cond, stmt, else_stmt} => {
+            if let Object::Bool(true) = eval(*cond) {
+                eval(*stmt)
+            } else {
+                if let Some(else_stmt) = else_stmt {
+                    eval(*else_stmt)
+                } else {
+                    Object::Null
+                }
+            }
+        },
+        ASTKind::Bool(b) => Object::Bool(b),
         _ => unimplemented!(),
     }
 }
@@ -31,6 +44,22 @@ mod tests {
         assert_eq!(
             Object::Integer(6),
             eval(AST::add(AST::add(AST::int(1), AST::int(3)), AST::int(2)))
+        );
+    }
+
+    #[test]
+    fn eval_if() {
+        assert_eq!(
+            Object::Integer(0),
+            eval(AST::if_stmt(AST::bool(true), AST::int(0), None))
+        );
+        assert_eq!(
+            Object::Null,
+            eval(AST::if_stmt(AST::bool(false), AST::int(0), None))
+        );
+        assert_eq!(
+            Object::Integer(2),
+            eval(AST::if_stmt(AST::bool(false), AST::int(0), Some(AST::int(2))))
         );
     }
 }
