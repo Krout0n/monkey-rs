@@ -18,6 +18,10 @@ pub fn eval(node: AST) -> Object {
             (Object::Integer(l), Object::Integer(r)) => Object::Integer(l * r),
             (_, _) => panic!("* operator supports only integer"),
         },
+        ASTKind::LT(lhs, rhs) => match (eval(*lhs), eval(*rhs)) {
+            (Object::Integer(l), Object::Integer(r)) => Object::Bool(l < r),
+            (_, _) => panic!("< operator supports only integer"),
+        },
         ASTKind::If {
             cond,
             stmt,
@@ -124,5 +128,10 @@ mod tests {
             Object::Integer(10),
             eval(AST::compound_statement(vec![AST::int(2), AST::int(10)]))
         )
+    }
+
+    #[test]
+    fn eval_relational() {
+        assert_eq!(Object::Bool(true), eval(AST::lt(AST::int(1), AST::int(2))));
     }
 }

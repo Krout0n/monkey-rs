@@ -6,16 +6,20 @@ pub enum ASTKind {
     Ident(String),
     Bool(bool),
     Add(Box<AST>, Box<AST>),
+    Minus(Box<AST>, Box<AST>),
     Multi(Box<AST>, Box<AST>),
+    LT(Box<AST>, Box<AST>),
+    LTE(Box<AST>, Box<AST>),
+    GT(Box<AST>, Box<AST>),
+    GTE(Box<AST>, Box<AST>),
     Let {
         name: String,
         expr: Box<AST>,
     },
     While {
         cond: Box<AST>,
-        stmt: Box<AST>
+        stmt: Box<AST>,
     },
-    Minus(Box<AST>, Box<AST>),
     Return(Box<AST>),
     Compound(Vec<AST>),
     If {
@@ -86,10 +90,10 @@ impl AST {
 
     pub fn while_stmt(cond: AST, stmt: AST) -> AST {
         AST {
-            kind: ASTKind::While{
+            kind: ASTKind::While {
                 cond: Box::new(cond),
-                stmt: Box::new(stmt)
-            }
+                stmt: Box::new(stmt),
+            },
         }
     }
 
@@ -134,6 +138,20 @@ impl AST {
     pub fn fn_def(args: Vec<String>, stmts: Vec<AST>) -> AST {
         AST {
             kind: ASTKind::FnDef { args, stmts },
+        }
+    }
+
+    pub fn lt(left: AST, right: AST) -> AST {
+        AST {
+            kind: ASTKind::LT(Box::new(left), Box::new(right)),
+        }
+    }
+
+    fn binary(op: Token, left: AST, right: AST) -> AST {
+        match op {
+            Token::Plus => AST::add(left, right),
+            Token::LT => AST::lt(left, right),
+            _ => unimplemented!(),
         }
     }
 }
@@ -312,10 +330,25 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn relational(&mut self) -> AST {
+        let mut left = self.additive();
+        loop {
+            match self.peek() {
+                Some(Token::LT) | Some(Token::GT) => {
+                    let op = self.get().unwrap();
+                    let right = self.primary();
+                    left = AST::binary(op, left, right);
+                }
+                _ => break,
+            };
+        }
+        left
+    }
+
     fn expression(&mut self) -> AST {
         match self.peek() {
             Some(Token::Function) => self.fn_def(),
-            Some(_) => self.additive(),
+            Some(_) => self.relational(),
             _ => unimplemented!(),
         }
     }
@@ -656,16 +689,18 @@ mod tests {
 
     #[test]
     fn parse_while_stmt() {
-        let t = vec![
-            Token::While,
-            Token::True,
-            Token::Int(1),
-            Token::Semicolon,
-        ];
+        let t = vec![Token::While, Token::True, Token::Int(1), Token::Semicolon];
         let mut p = Parser::new(&t);
         assert_eq!(
             p.while_stmt(),
             AST::while_stmt(AST::bool(true), AST::int(1))
         )
+    }
+
+    #[test]
+    fn parse_relational() {
+        let t = vec![Token::Int(1), Token::LT, Token::Int(2)];
+        let mut p = Parser::new(&t);
+        assert_eq!(p.relational(), AST::lt(AST::int(1), AST::int(2)))
     }
 }
