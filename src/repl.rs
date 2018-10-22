@@ -1,5 +1,6 @@
 use lexer::*;
 use token::*;
+use ast::*;
 
 #[allow(unused_imports)]
 use std::io::{self, stdin, Read, Write};
@@ -11,10 +12,14 @@ pub fn start() {
         print!(">> ");
         io::stdout().flush().unwrap();
         let mut l = Lexer::new(read_input());
+        let mut v = vec![];
         loop {
             let t = l.next_token();
-            println!("{:?}", t);
-            if t == Token::EOF {
+            v.push(t);
+            if v.get(v.len() - 1) == Some(&Token::EOF) {
+                let mut p = Parser::new(&v);
+                p.parse();
+                println!("{:?}", p.result);
                 break;
             }
         }
