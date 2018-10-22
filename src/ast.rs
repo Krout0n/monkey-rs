@@ -40,31 +40,31 @@ pub struct Parser<'a> {
 }
 
 impl AST {
-    fn int(i: i32) -> AST {
+    pub fn int(i: i32) -> AST {
         AST {
             kind: ASTKind::Int(i),
         }
     }
 
-    fn ident(s: String) -> AST {
+    pub fn ident(s: String) -> AST {
         AST {
             kind: ASTKind::Ident(s),
         }
     }
 
-    fn add(left: AST, right: AST) -> AST {
+    pub fn add(left: AST, right: AST) -> AST {
         AST {
             kind: ASTKind::Add(Box::new(left), Box::new(right)),
         }
     }
 
-    fn multi(left: AST, right: AST) -> AST {
+    pub fn multi(left: AST, right: AST) -> AST {
         AST {
             kind: ASTKind::Multi(Box::new(left), Box::new(right)),
         }
     }
 
-    fn let_stmt(name: String, expr: AST) -> AST {
+    pub fn let_stmt(name: String, expr: AST) -> AST {
         AST {
             kind: ASTKind::Let {
                 name,
@@ -73,7 +73,7 @@ impl AST {
         }
     }
 
-    fn return_stmt(expr: AST) -> AST {
+    pub fn return_stmt(expr: AST) -> AST {
         AST {
             kind: ASTKind::Return(Box::new(expr)),
         }
@@ -85,7 +85,7 @@ impl AST {
         }
     }
 
-    fn if_stmt(cond: AST, stmt: AST, else_stmt: Option<AST>) -> AST {
+    pub fn if_stmt(cond: AST, stmt: AST, else_stmt: Option<AST>) -> AST {
         if let Some(e) = else_stmt {
             AST {
                 kind: ASTKind::If {
@@ -105,13 +105,13 @@ impl AST {
         }
     }
 
-    fn fn_call(name: String, args: Vec<AST>) -> AST {
+    pub fn fn_call(name: String, args: Vec<AST>) -> AST {
         AST {
             kind: ASTKind::FnCall { name, args },
         }
     }
 
-    fn fn_def(args: Vec<String>, stmts: Vec<AST>) -> AST {
+    pub fn fn_def(args: Vec<String>, stmts: Vec<AST>) -> AST {
         AST {
             kind: ASTKind::FnDef { args, stmts },
         }

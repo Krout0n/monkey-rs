@@ -1,6 +1,6 @@
+use ast::*;
 use lexer::*;
 use token::*;
-use ast::*;
 
 #[allow(unused_imports)]
 use std::io::{self, stdin, Read, Write};
@@ -17,12 +17,12 @@ pub fn start() {
             let t = l.next_token();
             v.push(t);
             if v.get(v.len() - 1) == Some(&Token::EOF) {
-                let mut p = Parser::new(&v);
-                p.parse();
-                println!("{:?}", p.result);
                 break;
             }
         }
+        let mut p = Parser::new(&v);
+        p.parse();
+        println!("{:?}", p.result);
     }
 }
 
