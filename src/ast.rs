@@ -11,6 +11,10 @@ pub enum ASTKind {
         name: String,
         expr: Box<AST>,
     },
+    While {
+        cond: Box<AST>,
+        stmt: Box<AST>
+    },
     Minus(Box<AST>, Box<AST>),
     Return(Box<AST>),
     Compound(Vec<AST>),
@@ -77,6 +81,15 @@ impl AST {
                 name,
                 expr: Box::new(expr),
             },
+        }
+    }
+
+    pub fn while_stmt(cond: AST, stmt: AST) -> AST {
+        AST {
+            kind: ASTKind::While{
+                cond: Box::new(cond),
+                stmt: Box::new(stmt)
+            }
         }
     }
 
@@ -168,6 +181,13 @@ impl<'a> Parser<'a> {
             _ => None,
         };
         AST::if_stmt(cond, stmt, else_stmt)
+    }
+
+    fn while_stmt(&mut self) -> AST {
+        self.get();
+        let cond = self.expression();
+        let stmt = self.statement();
+        AST::while_stmt(cond, stmt)
     }
 
     fn peek(&self) -> Option<Token> {
@@ -312,6 +332,7 @@ impl<'a> Parser<'a> {
             Some(Token::Return) => self.return_stmt(),
             Some(Token::LBrace) => self.compound_statement(),
             Some(Token::If) => self.if_stmt(),
+            Some(Token::While) => self.while_stmt(),
             Some(_) => self.expression_statement(),
             None => panic!("parse error: try to parse statement but got None"),
         }
@@ -630,6 +651,21 @@ mod tests {
                     AST::ident("y".to_string())
                 ))]
             )
+        )
+    }
+
+    #[test]
+    fn parse_while_stmt() {
+        let t = vec![
+            Token::While,
+            Token::True,
+            Token::Int(1),
+            Token::Semicolon,
+        ];
+        let mut p = Parser::new(&t);
+        assert_eq!(
+            p.while_stmt(),
+            AST::while_stmt(AST::bool(true), AST::int(1))
         )
     }
 }
