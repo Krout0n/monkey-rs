@@ -55,7 +55,7 @@ impl AST {
 
     pub fn bool(b: bool) -> AST {
         AST {
-            kind: ASTKind::Bool(b)
+            kind: ASTKind::Bool(b),
         }
     }
 
