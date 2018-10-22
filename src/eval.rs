@@ -1,6 +1,6 @@
 use ast::{ASTKind, AST};
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Object {
     Integer(i32),
     Bool(bool),
@@ -29,6 +29,14 @@ pub fn eval(node: AST) -> Object {
             _ => eval(*stmt),
         },
         ASTKind::Bool(b) => Object::Bool(b),
+        ASTKind::Return(expr) => eval(*expr),
+        ASTKind::Compound(stmts) => {
+            let mut v = vec![];
+            for s in stmts {
+                v.push(eval(s))
+            }
+            v.get(v.len() - 1).unwrap().clone() // todo: fix proper way to return last evaluated obj
+        }
         _ => unimplemented!(),
     }
 }
@@ -80,5 +88,21 @@ mod tests {
                 Some(AST::int(2))
             ))
         );
+    }
+
+    #[test]
+    fn eval_return() {
+        assert_eq!(
+            Object::Integer(2),
+            eval(AST::return_stmt(AST::add(AST::int(1), AST::int(1))))
+        );
+    }
+
+    #[test]
+    fn eval_compound() {
+        assert_eq!(
+            Object::Integer(10),
+            eval(AST::compound_statement(vec![AST::int(2), AST::int(10)]))
+        )
     }
 }
