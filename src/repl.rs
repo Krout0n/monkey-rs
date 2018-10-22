@@ -1,6 +1,7 @@
 use ast::*;
 use lexer::*;
 use token::*;
+use eval::eval;
 
 #[allow(unused_imports)]
 use std::io::{self, stdin, Read, Write};
@@ -22,7 +23,9 @@ pub fn start() {
         }
         let mut p = Parser::new(&v);
         p.parse();
-        println!("{:?}", p.result);
+        for s in p.result {
+            println!("{:?}", eval(s));
+        }
     }
 }
 
