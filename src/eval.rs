@@ -100,6 +100,14 @@ mod tests {
                 Some(AST::int(2))
             ))
         );
+        assert_eq!(
+            Object::Integer(20),
+            eval(AST::if_stmt(
+                AST::bool(true),
+                AST::if_stmt(AST::bool(false), AST::int(10), Some(AST::int(20))),
+                Some(AST::int(30))
+            ))
+        )
     }
 
     #[test]
