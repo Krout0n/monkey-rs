@@ -12,7 +12,11 @@ pub fn eval(node: AST) -> Object {
         ASTKind::Int(i) => Object::Integer(i),
         ASTKind::Add(lhs, rhs) => match (eval(*lhs), eval(*rhs)) {
             (Object::Integer(l), Object::Integer(r)) => Object::Integer(l + r),
-            (_, _) => panic!("+ operand supports only integer"),
+            (_, _) => panic!("+ operator supports only integer"),
+        },
+        ASTKind::Multi(lhs, rhs) => match (eval(*lhs), eval(*rhs)) {
+            (Object::Integer(l), Object::Integer(r)) => Object::Integer(l * r),
+            (_, _) => panic!("* operator supports only integer"),
         },
         ASTKind::If {
             cond,
@@ -56,6 +60,14 @@ mod tests {
             Object::Integer(6),
             eval(AST::add(AST::add(AST::int(1), AST::int(3)), AST::int(2)))
         );
+    }
+
+    #[test]
+    fn eval_multi() {
+        assert_eq!(
+            Object::Integer(100),
+            eval(AST::multi(AST::int(20), AST::int(5)))
+        )
     }
 
     #[test]
