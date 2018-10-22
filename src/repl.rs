@@ -1,7 +1,7 @@
 use ast::*;
+use eval::eval;
 use lexer::*;
 use token::*;
-use eval::eval;
 
 #[allow(unused_imports)]
 use std::io::{self, stdin, Read, Write};
