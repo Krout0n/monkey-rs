@@ -257,6 +257,11 @@ impl<'a> Parser<'a> {
             }
             Some(Token::True) => AST::bool(true),
             Some(Token::False) => AST::bool(false),
+            Some(Token::LParen) => {
+                let expr = self.expression();
+                assert_eq!(self.get(), Some(Token::RParen));
+                expr
+            },
             Some(_) => panic!(
                 "unexpected token! {:?}, btw next one is {:?}",
                 t.unwrap(),
@@ -702,5 +707,23 @@ mod tests {
         let t = vec![Token::Int(1), Token::LT, Token::Int(2)];
         let mut p = Parser::new(&t);
         assert_eq!(p.relational(), AST::lt(AST::int(1), AST::int(2)))
+    }
+
+    #[test]
+    fn parse_lrparen() {
+        let t = vec![
+            Token::LParen,
+            Token::Int(1),
+            Token::Plus,
+            Token::Int(2),
+            Token::RParen,
+            Token::Star,
+            Token::Int(3)
+        ];
+        let mut p = Parser::new(&t);
+        assert_eq!(
+            p.additive(),
+            AST::multi(AST::add(AST::int(1), AST::int(2)), AST::int(3))
+        );
     }
 }
