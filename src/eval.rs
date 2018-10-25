@@ -113,10 +113,12 @@ impl Evaluator {
             ASTKind::Ident(s) => env.borrow().get(s),
             ASTKind::FnDef { args, stmts } => Object::func(args, stmts),
             ASTKind::FnCall { name, args: exprs } => {
-                let fnobj = self.eval(AST::ident(name), env);
-                if let Object::FnDef { args, stmts, env } = fnobj {
-                    for (name, expr) in args.iter().zip(exprs.iter()) {
-                        self.eval(AST::let_stmt(name.clone(), expr.clone()), &env);
+                let values: Vec<Object> = exprs.into_iter().map(|x| self.eval(x, &env)).collect();
+                let fnobj = self.eval(AST::ident(name.clone()), env);
+                if let Object::FnDef { args, stmts, env } = fnobj.clone() {
+                    env.borrow_mut().set(name, fnobj);
+                    for (name, value) in args.iter().zip(values.iter()) {
+                        env.borrow_mut().set(name.clone(), value.clone());
                     }
                     let mut v = vec![];
                     for s in stmts {
