@@ -25,7 +25,7 @@ pub fn start() {
         let mut p = Parser::new(&v);
         p.parse();
         for s in p.result {
-            println!("{:?}", ev.eval(s));
+            println!("{:?}", ev.eval(s, &ev.global_env));
         }
     }
 }

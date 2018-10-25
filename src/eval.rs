@@ -6,10 +6,25 @@ use std::collections::HashMap;
 pub enum Object {
     Integer(i32),
     Bool(bool),
+    FnDef {
+        args: Vec<String>,
+        stmts: Vec<AST>,
+        env: RefCell<Environment>,
+    },
     Null,
 }
 
-// #[derive(Copy)]
+impl Object {
+    fn func(args: Vec<String>, stmts: Vec<AST>) -> Self {
+        Object::FnDef {
+            args,
+            stmts,
+            env: RefCell::new(Environment::new()),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Environment {
     store: HashMap<String, Object>,
 }
@@ -37,7 +52,7 @@ impl Environment {
 }
 
 pub struct Evaluator {
-    global_env: RefCell<Environment>,
+    pub global_env: RefCell<Environment>,
 }
 
 impl Evaluator {
@@ -48,22 +63,22 @@ impl Evaluator {
         }
     }
 
-    pub fn eval(&self, node: AST) -> Object {
+    pub fn eval(&self, node: AST, env: &RefCell<Environment>) -> Object {
         match node.kind {
             ASTKind::Int(i) => Object::Integer(i),
-            ASTKind::Add(lhs, rhs) => match (self.eval(*lhs), self.eval(*rhs)) {
+            ASTKind::Add(lhs, rhs) => match (self.eval(*lhs, env), self.eval(*rhs, env)) {
                 (Object::Integer(l), Object::Integer(r)) => Object::Integer(l + r),
                 (_, _) => panic!("+ operator supports only integer"),
             },
-            ASTKind::Multi(lhs, rhs) => match (self.eval(*lhs), self.eval(*rhs)) {
+            ASTKind::Multi(lhs, rhs) => match (self.eval(*lhs, env), self.eval(*rhs, env)) {
                 (Object::Integer(l), Object::Integer(r)) => Object::Integer(l * r),
                 (_, _) => panic!("* operator supports only integer"),
             },
-            ASTKind::LT(lhs, rhs) => match (self.eval(*lhs), self.eval(*rhs)) {
+            ASTKind::LT(lhs, rhs) => match (self.eval(*lhs, env), self.eval(*rhs, env)) {
                 (Object::Integer(l), Object::Integer(r)) => Object::Bool(l < r),
                 (_, _) => panic!("< operator supports only integer"),
             },
-            ASTKind::LTE(lhs, rhs) => match (self.eval(*lhs), self.eval(*rhs)) {
+            ASTKind::LTE(lhs, rhs) => match (self.eval(*lhs, env), self.eval(*rhs, env)) {
                 (Object::Integer(l), Object::Integer(r)) => Object::Bool(l <= r),
                 (_, _) => panic!("<= operator supports only integer"),
             },
@@ -71,31 +86,46 @@ impl Evaluator {
                 cond,
                 stmt,
                 else_stmt,
-            } => match self.eval(*cond) {
+            } => match self.eval(*cond, env) {
                 Object::Integer(0) | Object::Bool(false) | Object::Null => {
                     if let Some(else_stmt) = else_stmt {
-                        self.eval(*else_stmt)
+                        self.eval(*else_stmt, env)
                     } else {
                         Object::Null
                     }
                 }
-                _ => self.eval(*stmt),
+                _ => self.eval(*stmt, env),
             },
             ASTKind::Bool(b) => Object::Bool(b),
-            ASTKind::Return(expr) => self.eval(*expr),
+            ASTKind::Return(expr) => self.eval(*expr, env),
             ASTKind::Compound(stmts) => {
                 let mut v = vec![];
                 for s in stmts {
-                    v.push(self.eval(s))
+                    v.push(self.eval(s, env))
                 }
                 v.get(v.len() - 1).unwrap().clone() // todo: fix proper way to return last evaluated obj
             }
             ASTKind::Let { name, expr } => {
-                let mut env = self.global_env.borrow_mut();
-                env.set(name, self.eval(*expr))
-            },
-            ASTKind::Ident(s) => {
-                self.global_env.borrow().get(s)
+                let value = self.eval(*expr, env);
+                let mut env = env.borrow_mut();
+                env.set(name, value)
+            }
+            ASTKind::Ident(s) => env.borrow().get(s),
+            ASTKind::FnDef { args, stmts } => Object::func(args, stmts),
+            ASTKind::FnCall { name, args: exprs } => {
+                let fnobj = self.eval(AST::ident(name), env);
+                if let Object::FnDef { args, stmts, env } = fnobj {
+                    for (name, expr) in args.iter().zip(exprs.iter()) {
+                        self.eval(AST::let_stmt(name.clone(), expr.clone()), &env);
+                    }
+                    let mut v = vec![];
+                    for s in stmts {
+                        v.push(self.eval(s, &env))
+                    }
+                    v.get(v.len() - 1).unwrap().clone() // todo: fix proper way to return last evaluated obj
+                } else {
+                    panic!("you tried to call undefined function.");
+                }
             }
             _ => unimplemented!(),
         }
@@ -110,7 +140,10 @@ mod tests {
         let ev = Evaluator::new();
         assert_eq!(
             Object::Integer(6),
-            ev.eval(AST::add(AST::add(AST::int(1), AST::int(3)), AST::int(2)))
+            ev.eval(
+                AST::add(AST::add(AST::int(1), AST::int(3)), AST::int(2)),
+                &ev.global_env
+            )
         );
     }
 
@@ -119,7 +152,7 @@ mod tests {
         let ev = Evaluator::new();
         assert_eq!(
             Object::Integer(100),
-            ev.eval(AST::multi(AST::int(20), AST::int(5)))
+            ev.eval(AST::multi(AST::int(20), AST::int(5)), &ev.global_env)
         )
     }
 
@@ -128,39 +161,53 @@ mod tests {
         let ev = Evaluator::new();
         assert_eq!(
             Object::Integer(0),
-            ev.eval(AST::if_stmt(AST::bool(true), AST::int(0), None))
+            ev.eval(
+                AST::if_stmt(AST::bool(true), AST::int(0), None),
+                &ev.global_env
+            )
         );
         assert_eq!(
             Object::Null,
-            ev.eval(AST::if_stmt(AST::bool(false), AST::int(0), None))
+            ev.eval(
+                AST::if_stmt(AST::bool(false), AST::int(0), None),
+                &ev.global_env
+            )
         );
         assert_eq!(
             Object::Integer(2),
-            ev.eval(AST::if_stmt(
-                AST::bool(false),
-                AST::int(0),
-                Some(AST::int(2))
-            ))
+            ev.eval(
+                AST::if_stmt(AST::bool(false), AST::int(0), Some(AST::int(2))),
+                &ev.global_env
+            )
         );
         assert_eq!(
             Object::Integer(0),
-            ev.eval(AST::if_stmt(AST::int(1), AST::int(0), Some(AST::int(2))))
+            ev.eval(
+                AST::if_stmt(AST::int(1), AST::int(0), Some(AST::int(2))),
+                &ev.global_env
+            )
         );
         assert_eq!(
             Object::Integer(2),
-            ev.eval(AST::if_stmt(
-                AST::add(AST::int(1), AST::int(-1)),
-                AST::int(0),
-                Some(AST::int(2))
-            ))
+            ev.eval(
+                AST::if_stmt(
+                    AST::add(AST::int(1), AST::int(-1)),
+                    AST::int(0),
+                    Some(AST::int(2))
+                ),
+                &ev.global_env
+            )
         );
         assert_eq!(
             Object::Integer(20),
-            ev.eval(AST::if_stmt(
-                AST::bool(true),
-                AST::if_stmt(AST::bool(false), AST::int(10), Some(AST::int(20))),
-                Some(AST::int(30))
-            ))
+            ev.eval(
+                AST::if_stmt(
+                    AST::bool(true),
+                    AST::if_stmt(AST::bool(false), AST::int(10), Some(AST::int(20))),
+                    Some(AST::int(30))
+                ),
+                &ev.global_env
+            )
         )
     }
 
@@ -169,7 +216,10 @@ mod tests {
         let ev = Evaluator::new();
         assert_eq!(
             Object::Integer(2),
-            ev.eval(AST::return_stmt(AST::add(AST::int(1), AST::int(1))))
+            ev.eval(
+                AST::return_stmt(AST::add(AST::int(1), AST::int(1))),
+                &ev.global_env
+            )
         );
     }
 
@@ -178,7 +228,10 @@ mod tests {
         let ev = Evaluator::new();
         assert_eq!(
             Object::Integer(10),
-            ev.eval(AST::compound_statement(vec![AST::int(2), AST::int(10)]))
+            ev.eval(
+                AST::compound_statement(vec![AST::int(2), AST::int(10)]),
+                &ev.global_env
+            )
         )
     }
 
@@ -187,7 +240,7 @@ mod tests {
         let ev = Evaluator::new();
         assert_eq!(
             Object::Bool(true),
-            ev.eval(AST::lt(AST::int(1), AST::int(2)))
+            ev.eval(AST::lt(AST::int(1), AST::int(2)), &ev.global_env)
         );
     }
 
@@ -196,16 +249,55 @@ mod tests {
         let ev = Evaluator::new();
         assert_eq!(
             Object::Integer(2),
-            ev.eval(AST::let_stmt("x".to_string(), AST::int(2)))
+            ev.eval(AST::let_stmt("x".to_string(), AST::int(2)), &ev.global_env)
         );
 
         assert_eq!(
             Object::Integer(2),
-            ev.eval(AST::ident("x".to_string()))
+            ev.eval(AST::ident("x".to_string()), &ev.global_env)
         );
         assert_eq!(
             Object::Integer(3),
-            ev.eval(AST::add(AST::ident("x".to_string()), AST::int(1)))
+            ev.eval(
+                AST::add(AST::ident("x".to_string()), AST::int(1)),
+                &ev.global_env
+            )
         )
+    }
+
+    #[test]
+    fn eval_func() {
+        let ev = Evaluator::new();
+        ev.eval(
+            AST::let_stmt(
+                "x".to_string(),
+                AST::fn_def(vec![], vec![AST::return_stmt(AST::int(1))]),
+            ),
+            &ev.global_env,
+        );
+        assert_eq!(
+            Object::Integer(1),
+            ev.eval(AST::fn_call("x".to_string(), vec![]), &ev.global_env)
+        );
+
+        // let x = fn(x) {  return x + 1;}
+        ev.eval(
+            AST::let_stmt(
+                "x".to_string(),
+                AST::fn_def(
+                    vec!["x".to_string()],
+                    vec![AST::return_stmt(AST::add(
+                        AST::int(1),
+                        AST::ident("x".to_string()),
+                    ))],
+                ),
+            ),
+            &ev.global_env,
+        );
+
+        assert_eq!(
+            Object::Integer(2),
+            ev.eval(AST::fn_call("x".to_string(), vec![AST::int(1)]), &ev.global_env)
+        );
     }
 }

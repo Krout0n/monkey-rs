@@ -1,6 +1,6 @@
 use token::Token;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ASTKind {
     Int(i32),
     Ident(String),
@@ -37,7 +37,7 @@ pub enum ASTKind {
     },
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct AST {
     pub kind: ASTKind,
 }
