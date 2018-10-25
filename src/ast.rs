@@ -254,7 +254,7 @@ impl<'a> Parser<'a> {
                             Some(Token::RParen) => break,
                             Some(Token::Comma) => self.get(),
                             Some(i) => panic!("parse error: unexpected token {:?}", i),
-                            None => panic!("nannka token nai nen kedo")
+                            None => panic!("nannka token nai nen kedo"),
                         };
                     }
                     self.get();
@@ -285,7 +285,7 @@ impl<'a> Parser<'a> {
             match self.peek() {
                 Some(Token::Plus) | Some(Token::Minus) => {
                     let op = self.get().unwrap();
-                    let right = self.primary();
+                    let right = self.multiplicative();
                     left = AST::binary(op, left, right);
                 }
                 _ => break,
