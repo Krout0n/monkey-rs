@@ -303,7 +303,51 @@ mod tests {
 
         assert_eq!(
             Object::Integer(2),
-            ev.eval(AST::fn_call("x".to_string(), vec![AST::int(1)]), &ev.global_env)
+            ev.eval(
+                AST::fn_call("x".to_string(), vec![AST::int(1)]),
+                &ev.global_env
+            )
+        );
+    }
+
+    // let twice = fn(f, x) {
+    //   return f(f(x));
+    // };
+    // twice(fn(a) { return a + 1;} 0);
+    #[test]
+    fn eval_closure() {
+        let ev = Evaluator::new();
+        ev.eval(
+            AST::let_stmt(
+                "twice".to_string(),
+                AST::fn_def(
+                    vec!["f".to_string(), "x".to_string()],
+                    vec![AST::fn_call(
+                        "f".to_string(),
+                        vec![AST::fn_call(
+                            "f".to_string(),
+                            vec![AST::ident("x".to_string())],
+                        )],
+                    )],
+                ),
+            ),
+            &ev.global_env,
+        );
+        assert_eq!(
+            Object::Integer(2),
+            ev.eval(
+                AST::fn_call(
+                    "twice".to_string(),
+                    vec![AST::fn_def(
+                        vec!["a".to_string()],
+                        vec![AST::return_stmt(AST::add(
+                            AST::ident("a".to_string()),
+                            AST::int(1)
+                        ))]
+                    ), AST::int(0)]
+                ),
+                &ev.global_env
+            )
         );
     }
 }
