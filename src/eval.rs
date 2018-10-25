@@ -70,6 +70,10 @@ impl Evaluator {
                 (Object::Integer(l), Object::Integer(r)) => Object::Integer(l + r),
                 (_, _) => panic!("+ operator supports only integer"),
             },
+            ASTKind::Minus(lhs, rhs) => match (self.eval(*lhs, env), self.eval(*rhs, env)) {
+                (Object::Integer(l), Object::Integer(r)) => Object::Integer(l + r),
+                (_, _) => panic!("+ operator supports only integer"),
+            },
             ASTKind::Multi(lhs, rhs) => match (self.eval(*lhs, env), self.eval(*rhs, env)) {
                 (Object::Integer(l), Object::Integer(r)) => Object::Integer(l * r),
                 (_, _) => panic!("* operator supports only integer"),

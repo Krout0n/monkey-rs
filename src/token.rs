@@ -5,6 +5,7 @@ pub enum Token {
 
     Assign,
     Plus,
+    Minus,
     Star,
 
     GT,

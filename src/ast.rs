@@ -73,6 +73,12 @@ impl AST {
         }
     }
 
+    pub fn minus(left: AST, right: AST) -> AST {
+        AST {
+            kind: ASTKind::Minus(Box::new(left), Box::new(right)),
+        }
+    }
+
     pub fn multi(left: AST, right: AST) -> AST {
         AST {
             kind: ASTKind::Multi(Box::new(left), Box::new(right)),
@@ -150,6 +156,7 @@ impl AST {
     fn binary(op: Token, left: AST, right: AST) -> AST {
         match op {
             Token::Plus => AST::add(left, right),
+            Token::Minus => AST::minus(left, right),
             Token::LT => AST::lt(left, right),
             _ => unimplemented!(),
         }
@@ -246,7 +253,8 @@ impl<'a> Parser<'a> {
                         match self.peek() {
                             Some(Token::RParen) => break,
                             Some(Token::Comma) => self.get(),
-                            _ => panic!("parse error: unexpected token {:?}"),
+                            Some(i) => panic!("parse error: unexpected token {:?}", i),
+                            None => panic!("nannka token nai nen kedo")
                         };
                     }
                     self.get();
@@ -274,13 +282,14 @@ impl<'a> Parser<'a> {
     fn additive(&mut self) -> AST {
         let mut left = self.multiplicative();
         loop {
-            let peeked = self.peek();
-            if peeked != Some(Token::Plus) {
-                break;
-            }
-            self.get();
-            let right = self.multiplicative();
-            left = AST::add(left, right);
+            match self.peek() {
+                Some(Token::Plus) | Some(Token::Minus) => {
+                    let op = self.get().unwrap();
+                    let right = self.primary();
+                    left = AST::binary(op, left, right);
+                }
+                _ => break,
+            };
         }
         left
     }
