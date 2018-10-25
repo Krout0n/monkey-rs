@@ -261,7 +261,7 @@ impl<'a> Parser<'a> {
                 let expr = self.expression();
                 assert_eq!(self.get(), Some(Token::RParen));
                 expr
-            },
+            }
             Some(_) => panic!(
                 "unexpected token! {:?}, btw next one is {:?}",
                 t.unwrap(),
@@ -718,7 +718,7 @@ mod tests {
             Token::Int(2),
             Token::RParen,
             Token::Star,
-            Token::Int(3)
+            Token::Int(3),
         ];
         let mut p = Parser::new(&t);
         assert_eq!(

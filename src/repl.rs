@@ -1,5 +1,5 @@
 use ast::*;
-use eval::eval;
+use eval::Evaluator;
 use lexer::*;
 use token::*;
 
@@ -9,6 +9,7 @@ use std::io::{self, stdin, Read, Write};
 pub fn start() {
     println!("Yo this is a Monkey programming language REPL!");
     println!("Feel free to type some statement!");
+    let ev = Evaluator::new();
     loop {
         print!(">> ");
         io::stdout().flush().unwrap();
@@ -24,7 +25,7 @@ pub fn start() {
         let mut p = Parser::new(&v);
         p.parse();
         for s in p.result {
-            println!("{:?}", eval(s));
+            println!("{:?}", ev.eval(s));
         }
     }
 }
