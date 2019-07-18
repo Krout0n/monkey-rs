@@ -3,7 +3,7 @@ Writing A Monkey Interpreter In Rust. It is a subset language of Monkey-lang.
 
 See: https://interpreterbook.com/
 
->>>
+```
 $ cargo run --bin repl
 ➜  monkey-rs git:(master) ✗ cargo run --bin run-repl
     Finished dev [unoptimized + debuginfo] target(s) in 0.00s
@@ -15,3 +15,4 @@ Integer(10)
 >> y + 1;
 Integer(11)
 >> 
+```
